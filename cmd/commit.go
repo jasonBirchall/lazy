@@ -10,10 +10,23 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
 var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
+
+const systemMessage = `You are intelligent, helpful and an expert developer, who always gives the correct answer and only does what instructed. You always answer truthfully and don't make things up. (When responding to the following prompt, please make sure to properly style your response using Github Flavored Markdown. Use markdown syntax for things like headings, lists, colored text, code blocks, highlights etc. Make sure not to mention markdown or styling in your actual response.)`
+
+const userMessage = `Suggest a precise and informative commit message based on the following diff. Do not use markdown syntax in your response.
+
+The commit message should have description with a short title that follows emoji commit message format like <emoji> <description>.
+
+Examples:
+- :refactor: Change log format for better visibility
+- :sparkles: Introduce new logging class
+
+Diff: `
 
 // commitCmd represents the commit command
 var commitCmd = &cobra.Command{
@@ -33,23 +46,17 @@ It helps you see what changes have been made before committing them. It also sug
 			return
 		}
 
-		fmt.Println("Select a commit message:")
-		for i, msg := range commitMessages {
-			fmt.Printf("%d: %s\n", i+1, msg)
+		prompt := promptui.Select{
+			Label: "Select a commit message",
+			Items: commitMessages,
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter the number of the commit message you want to use: ")
-		choice, _ := reader.ReadString('\n')
-
-		commitIndex := -1
-		fmt.Sscanf(choice, "%d", &commitIndex)
-		if commitIndex < 1 || commitIndex > len(commitMessages) {
-			fmt.Println("Invalid choice.")
+		_, selectedMessage, err := prompt.Run()
+		if err != nil {
+			fmt.Println("Prompt failed:", err)
 			return
 		}
 
-		selectedMessage := commitMessages[commitIndex-1]
 		commitChanges(selectedMessage)
 	},
 }
@@ -70,8 +77,8 @@ func getCommitMessages(diff []byte) []string {
 	requestBody, _ := json.Marshal(map[string]interface{}{
 		"model": "gpt-3.5-turbo",
 		"messages": []map[string]string{
-			{"role": "system", "content": "You are a helpful assistant that generates commit messages using the emoji commit structure."},
-			{"role": "user", "content": fmt.Sprintf("Generate a commit messages for the following diff:\n%s", string(diff))},
+			{"role": "system", "content": systemMessage},
+			{"role": "user", "content": userMessage + string(diff)},
 		},
 		"max_tokens": 150,
 		"n":          5,
