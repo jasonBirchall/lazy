@@ -31,8 +31,6 @@ jobs:
       uses: codecov/codecov-action@v5.0.7
       with:
         file: coverage.out
-        flags: unittests
-        name: codecov-umbrella
         slug: jasonbirchall/lazycommit
         fail_ci_if_error: true
       env:
