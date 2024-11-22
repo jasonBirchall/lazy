@@ -1,11 +1,11 @@
 ## lazycommit commit
 
-Prints out the diff in the current directory
+Prints out the diff in the current directory and suggests commit messages
 
 ### Synopsis
 
 This command prints out the diff of the changes in the current directory.
-It helps you see what changes have been made before committing them.
+It helps you see what changes have been made before committing them. It also suggests commit messages.
 
 ```
 lazycommit commit [flags]

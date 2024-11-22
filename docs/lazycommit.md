@@ -20,7 +20,7 @@ to quickly create a Cobra application.
 
 ### SEE ALSO
 
-* [lazycommit commit](lazycommit_commit.md)	 - Prints out the diff in the current directory
+* [lazycommit commit](lazycommit_commit.md)	 - Prints out the diff in the current directory and suggests commit messages
 * [lazycommit completion](lazycommit_completion.md)	 - Generate the autocompletion script for the specified shell
 * [lazycommit docs](lazycommit_docs.md)	 - Generates Markdown documentation for the CLI
 * [lazycommit init](lazycommit_init.md)	 - Initializes the configuration file in the user's Linux profile
