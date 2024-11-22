@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -10,10 +9,36 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
 var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
+
+const message = `Please suggest a commit messages using the below criteria.
+**Criteria:**
+
+1. **Format:** Each commit message must follow the emoji commits format. The message should start with an emoji followed by a brief description of the change. The description should be clear and concise, ideally under 50 characters.
+2. **Relevance:** Avoid mentioning a module name unless it's directly relevant to the change.
+3. **Clarity and Conciseness:** Each message should clearly and concisely convey the change made.
+
+**Commit Message Examples:**
+
+-   🚀 Released version 1.4.0
+-   🐛 Fixed issue with user authentication
+-   📝 Updated documentation for the new API
+-   🎨 Refactored the code for better readability
+
+**Instructions:**
+
+-   Take a moment to understand the changes made in the diff.
+-   Think about the impact of these changes on the project (e.g., bug fixes, new features, performance improvements, code refactoring, documentation updates). It's critical to my career you abstract the changes to a higher level and not just describe the code changes.
+-   Generate commit messages that accurately describe these changes, ensuring they are helpful to someone reading the project's history.
+-   Remember, a well-crafted commit message can significantly aid in the maintenance and understanding of the project over time.
+-   If multiple changes are present, make sure you capture them all in each commit message.
+
+Keep in mind you will suggest a commit messages. Only 1 will be used. It's better to push yourself (esp to synthesize to a higher level) and maybe wrong about some of the commits because only one needs to be good. I'm looking for your best commit, not the best average commit. It's better to cover more scenarios than include a lot of overlap.
+`
 
 // commitCmd represents the commit command
 var commitCmd = &cobra.Command{
@@ -33,23 +58,17 @@ It helps you see what changes have been made before committing them. It also sug
 			return
 		}
 
-		fmt.Println("Select a commit message:")
-		for i, msg := range commitMessages {
-			fmt.Printf("%d: %s\n", i+1, msg)
+		prompt := promptui.Select{
+			Label: "Select a commit message",
+			Items: commitMessages,
 		}
 
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter the number of the commit message you want to use: ")
-		choice, _ := reader.ReadString('\n')
-
-		commitIndex := -1
-		fmt.Sscanf(choice, "%d", &commitIndex)
-		if commitIndex < 1 || commitIndex > len(commitMessages) {
-			fmt.Println("Invalid choice.")
+		_, selectedMessage, err := prompt.Run()
+		if err != nil {
+			fmt.Println("Prompt failed:", err)
 			return
 		}
 
-		selectedMessage := commitMessages[commitIndex-1]
 		commitChanges(selectedMessage)
 	},
 }
@@ -71,7 +90,7 @@ func getCommitMessages(diff []byte) []string {
 		"model": "gpt-3.5-turbo",
 		"messages": []map[string]string{
 			{"role": "system", "content": "You are a helpful assistant that generates commit messages using the emoji commit structure."},
-			{"role": "user", "content": fmt.Sprintf("Generate a commit messages for the following diff:\n%s", string(diff))},
+			{"role": "user", "content": message + string(diff)},
 		},
 		"max_tokens": 150,
 		"n":          5,
