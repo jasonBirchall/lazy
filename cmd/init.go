@@ -25,16 +25,19 @@ in the user's home directory.`,
 			fmt.Println("Error getting home directory:", err)
 			return
 		}
-
-		configFilePath := filepath.Join(homeDir, ".lazycommit.yaml")
-		err = os.WriteFile(configFilePath, []byte(configContent), 0644)
-		if err != nil {
-			fmt.Println("Error writing config file:", err)
-			return
-		}
-
-		fmt.Println("Configuration file created at:", configFilePath)
+		_ = createConfigFile(homeDir)
 	},
+}
+
+func createConfigFile(homeDir string) string {
+	configFilePath := filepath.Join(homeDir, ".lazycommit.yaml")
+	err := os.WriteFile(configFilePath, []byte(configContent), 0644)
+	if err != nil {
+		fmt.Println("Error writing config file:", err)
+		return ""
+	}
+	fmt.Println("Configuration file created at:", configFilePath)
+	return configFilePath
 }
 
 func init() {
