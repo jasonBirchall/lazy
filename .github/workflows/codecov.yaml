@@ -33,6 +33,7 @@ jobs:
         file: coverage.out
         flags: unittests
         name: codecov-umbrella
+        slug: jasonbirchall/lazycommit
         fail_ci_if_error: true
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
