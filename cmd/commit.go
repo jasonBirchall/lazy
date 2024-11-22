@@ -1,28 +1,124 @@
 package cmd
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/spf13/cobra"
 )
 
+var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
+
 // commitCmd represents the commit command
 var commitCmd = &cobra.Command{
 	Use:   "commit",
-	Short: "Prints out the diff in the current directory",
+	Short: "Prints out the diff in the current directory and suggests commit messages",
 	Long: `This command prints out the diff of the changes in the current directory.
-It helps you see what changes have been made before committing them.`,
+It helps you see what changes have been made before committing them. It also suggests commit messages.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		printDiff()
+		diff := gitDiff()
+		if diff == nil {
+			return
+		}
+
+		commitMessages := getCommitMessages(diff)
+		if len(commitMessages) == 0 {
+			fmt.Println("No commit messages generated.")
+			return
+		}
+
+		fmt.Println("Select a commit message:")
+		for i, msg := range commitMessages {
+			fmt.Printf("%d: %s\n", i+1, msg)
+		}
+
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter the number of the commit message you want to use: ")
+		choice, _ := reader.ReadString('\n')
+
+		commitIndex := -1
+		fmt.Sscanf(choice, "%d", &commitIndex)
+		if commitIndex < 1 || commitIndex > len(commitMessages) {
+			fmt.Println("Invalid choice.")
+			return
+		}
+
+		selectedMessage := commitMessages[commitIndex-1]
+		commitChanges(selectedMessage)
 	},
 }
 
-func printDiff() {
-	cmd := exec.Command("git", "diff")
+func gitDiff() []byte {
+	cmd := exec.Command("git", "diff", "--staged")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println("Error running git diff:", err)
+		return nil
+	}
+	return output
+}
+
+func getCommitMessages(diff []byte) []string {
+	// Call OpenAI API to get commit messages using gpt-3.5-turbo
+	url := "https://api.openai.com/v1/chat/completions"
+	requestBody, _ := json.Marshal(map[string]interface{}{
+		"model": "gpt-3.5-turbo",
+		"messages": []map[string]string{
+			{"role": "system", "content": "You are a helpful assistant that generates commit messages using the emoji commit structure."},
+			{"role": "user", "content": fmt.Sprintf("Generate a commit messages for the following diff:\n%s", string(diff))},
+		},
+		"max_tokens": 150,
+		"n":          5,
+	})
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
+	if err != nil {
+		fmt.Println("Error creating request:", err)
+		return nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+openAIAPIKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Error making request:", err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	var result map[string]interface{}
+	json.Unmarshal(body, &result)
+
+	choices, ok := result["choices"].([]interface{})
+	if !ok {
+		fmt.Println("Error parsing response.")
+		return nil
+	}
+
+	var messages []string
+	for _, choice := range choices {
+		text, ok := choice.(map[string]interface{})["message"].(map[string]interface{})["content"].(string)
+		if ok {
+			messages = append(messages, text)
+		}
+	}
+
+	return messages
+}
+
+func commitChanges(message string) {
+	cmd := exec.Command("git", "commit", "-m", message)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("Error committing changes:", err)
 		return
 	}
 	fmt.Println(string(output))
