@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
-
-var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
 
 const systemMessage = `You are intelligent, helpful and an expert developer, who always gives the correct answer and only does what instructed. You always answer truthfully and don't make things up. (When responding to the following prompt, please make sure to properly style your response using Github Flavored Markdown. Use markdown syntax for things like headings, lists, colored text, code blocks, highlights etc. Make sure not to mention markdown or styling in your actual response.)`
 
@@ -27,19 +27,23 @@ Examples:
 
 Diff: `
 
-// commitCmd represents the commit command
 var commitCmd = &cobra.Command{
 	Use:   "commit",
 	Short: "Prints out the diff in the current directory and suggests commit messages",
 	Long: `This command prints out the diff of the changes in the current directory.
 It helps you see what changes have been made before committing them. It also suggests commit messages.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		apiKey := getAPIKey()
+		if apiKey == "" {
+			fmt.Println("No OpenAI API key found. Either set an OPENAI_TOKEN environment variable or use the lazycommit init command to set it.")
+			return
+		}
+
 		diff := gitDiff()
 		if diff == nil {
 			return
 		}
-
-		commitMessages := getCommitMessages(diff)
+		commitMessages := getCommitMessages(diff, apiKey)
 		if len(commitMessages) == 0 {
 			fmt.Println("No commit messages generated.")
 			return
@@ -60,6 +64,33 @@ It helps you see what changes have been made before committing them. It also sug
 	},
 }
 
+func getAPIKey() string {
+	var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
+	if os.Getenv("OPENAI_TOKEN") == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Println("Error getting home directory:", err)
+			return ""
+		}
+		configFilePath := filepath.Join(homeDir, ".lazycommit.yaml")
+		if _, err := os.Stat(configFilePath); err == nil {
+			configFile, err := os.ReadFile(configFilePath)
+			if err != nil {
+				fmt.Println("Error reading config file:", err)
+				return ""
+			}
+			config := make(map[string]string)
+			err = yaml.Unmarshal(configFile, &config)
+			if err != nil {
+				fmt.Println("Error parsing config file:", err)
+				return ""
+			}
+			openAIAPIKey = config["openai_api_key"]
+		}
+	}
+	return openAIAPIKey
+}
+
 func gitDiff() []byte {
 	cmd := exec.Command("git", "diff", "--staged")
 	output, err := cmd.CombinedOutput()
@@ -70,7 +101,7 @@ func gitDiff() []byte {
 	return output
 }
 
-func getCommitMessages(diff []byte) []string {
+func getCommitMessages(diff []byte, openAIAPIKey string) []string {
 	// Call OpenAI API to get commit messages using gpt-3.5-turbo
 	url := "https://api.openai.com/v1/chat/completions"
 	requestBody, _ := json.Marshal(map[string]interface{}{
