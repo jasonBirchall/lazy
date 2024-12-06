@@ -65,7 +65,7 @@ It helps you see what changes have been made before committing them. It also sug
 }
 
 func getAPIKey() string {
-	var openAIAPIKey = os.Getenv("OPENAI_TOKEN")
+	openAIAPIKey := os.Getenv("OPENAI_TOKEN")
 	if os.Getenv("OPENAI_TOKEN") == "" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
