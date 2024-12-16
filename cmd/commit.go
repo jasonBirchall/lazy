@@ -45,7 +45,7 @@ It helps you see what changes have been made before committing them. It also sug
 		}
 		commitMessages := getCommitMessages(diff, apiKey)
 		if len(commitMessages) == 0 {
-			fmt.Println("No commit messages generated.")
+			fmt.Println("An error occurred while getting commit messages.")
 			return
 		}
 
