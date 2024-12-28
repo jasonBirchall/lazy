@@ -132,7 +132,11 @@ func getCommitMessages(diff []byte, openAIAPIKey string) []string {
 
 	body, _ := io.ReadAll(resp.Body)
 	var result map[string]interface{}
-	json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		fmt.Println("Error parsing response:", err)
+		return nil
+	}
 
 	choices, ok := result["choices"].([]interface{})
 	if !ok {
