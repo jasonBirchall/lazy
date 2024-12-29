@@ -15,4 +15,7 @@ fmt:
 lint:
 	golangci-lint run
 
-.PHONY: build test deps fmt lint
+install:
+	goreleaser build --single-target
+
+.PHONY: build test deps fmt lint install
