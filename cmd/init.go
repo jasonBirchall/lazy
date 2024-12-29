@@ -17,7 +17,7 @@ var configContent = `
 // initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initializes the configuration file in the user's Linux profile",
+	Short: "Initializes the configuration file in the user's profile",
 	Long: `This command initializes a configuration file named .lazycommit.yaml
 in the user's home directory.`,
 	Run: func(cmd *cobra.Command, args []string) {
